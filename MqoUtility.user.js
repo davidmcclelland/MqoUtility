@@ -11,27 +11,39 @@
 // @noframes
 // ==/UserScript==
 
-const displayHtml = `
-<div id="MqoUtilityButtons">
-  <input type="button" value="Chests" onclick="MqoUtility.openAllChests()">
-  <input type="button" value="Bags" onclick="MqoUtility.openAllResBags()">
-</div>
-`
+const ButtonBar = (() => {
+  const displayHtml = `<div id="MqoUtilityButtons"></div>`;
 
-const displayStyle = `
-#MqoUtilityButtons > input {
-  text-align: center;
-  font-size: 13px;
-  height: 30px;
-  align-self: center;
-  border: 1px solid #00000088;
-  border-radius: 5px;
-  font-weight: bold;
-  font-family: Helvetica;
-}
-`
+  const displayStyle = `
+  #MqoUtilityButtons > input {
+    text-align: center;
+    font-size: 13px;
+    height: 30px;
+    width: auto;
+    align-self: center;
+    border: 1px solid #00000088;
+    border-radius: 5px;
+    font-weight: bold;
+    font-family: Helvetica;
+  }
+  `
 
-const chestOpener = (() => {
+  const addToButtonBar = (elemStr) => {
+    $('#MqoUtilityButtons').append(elemStr);
+  }
+
+  $(document).ready(() => {
+    GM_addStyle(displayStyle);
+    $('#CaptchaDiv').before(displayHtml);
+  });
+
+  return { addToButtonBar };
+})();
+
+const ChestOpener = (() => {
+  const openChestHtml = `<input type="button" class="gmButtonMed" value="Chests" onclick="MqoUtility.ChestOpener.openAllChests()">`;
+  const openBagHtml = `<input type="button" class="gmButtonMed" value="Bags" onclick="MqoUtility.ChestOpener.openAllResBags()">`;
+
   const bronzeChestId = '#btnOpenChest2';
   const silverChestid = '#btnOpenChest3';
   const goldChestId = '#btnOpenChest4';
@@ -40,12 +52,16 @@ const chestOpener = (() => {
 
   const sleep = m => new Promise(r => setTimeout(r, m));
 
+  const keepOpeningChest = (btnId) => {
+    return $(btnId).length && ($(btnId)[0].style.display !== 'none');
+  };
+
   const openAllChestsOfType = async (btnId) => {
-    let btnLength = $(btnId).length;
+    let btnLength = keepOpeningChest(btnId);
     while (btnLength) {
       $(btnId).click();
       await sleep(500);
-      btnLength = ($btnId).length;
+      btnLength = keepOpeningChest(btnId);
     }
   }
 
@@ -62,17 +78,17 @@ const chestOpener = (() => {
     openAllChestsOfType(resBagId);
   }
 
+  $(document).ready(() => {
+    ButtonBar.addToButtonBar(openChestHtml);
+    ButtonBar.addToButtonBar(openBagHtml);
+  });
+
   return { openAllChests, openAllResBags };
 })();
 
-$(document).ready(() => {
-  GM_addStyle(displayStyle);
-  $('#CaptchaDiv').before(displayHtml);
-});
-
 if (unsafeWindow.MqoUtility === undefined) {
   unsafeWindow.MqoUtility = {
-    openAllChests: chestOpener.openAllChests,
-    openAllResBags: chestOpener.openAllResBags,
+    ButtonBar,
+    ChestOpener,
   }
 }
