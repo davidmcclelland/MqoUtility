@@ -14,18 +14,17 @@
 const waitForActionTimer = timeoutms => new Promise((r, j) => {
   const check = () => {
     if ($('#prgActionTimer').attr('aria-valuenow') === '0') {
-      console.log('action timer is 0!');
       r();
     } else if ((timeoutms -= 100) < 0) {
-      console.log('timed out');
       j('timed out!');
     } else {
-      console.log('still waiting', $('#prgActionTimer').attr('aria-valuenow'));
       setTimeout(check, 100);
     }
   }
   setTimeout(check, 100);
 });
+
+const sleep = m => new Promise(r => setTimeout(r, m));
 
 const ButtonBar = (() => {
   const displayHtml = `<div id="MqoUtilityButtons"></div>`;
@@ -65,8 +64,6 @@ const ChestOpener = (() => {
   const goldChestId = '#btnOpenChest4';
 
   const resBagId = '#btnOpenResBag';
-
-  const sleep = m => new Promise(r => setTimeout(r, m));
 
   const keepOpeningChest = (btnId) => {
     return $(btnId).length && ($(btnId)[0].style.display !== 'none');
@@ -234,10 +231,48 @@ const Princess = (() => {
   };
 })();
 
+const Perks = (() => {
+  const DrunkButtonId = '#btnActivatePerk21';
+  const EnragedButtonId = '#btnActivatePerk22';
+  const LuckyButtonId = '#btnActivatePerk23';
+  const PitiedButtonId = '#btnActivatePerk24';
+  const HoarderButtonId = '#btnActivatePerk25';
+  const desiredPerks = [DrunkButtonId, EnragedButtonId, LuckyButtonId, PitiedButtonId, HoarderButtonId];
+
+  const perkHtml = `<input type="button" class="gmButtonMed" value="Perks" onclick="MqoUtility.Perks.addPerks()">`;
+
+  const addPerk = async (btnId, numTimes) => {
+    $(btnId).click();
+    await sleep(250);
+    for (let clickCounter = 0; clickCounter < numTimes; ++clickCounter) {
+      $('#btnActivateOre').click();
+      await sleep(250);
+    }
+  }
+
+  const addPerks = async () => {
+    sendRequestContentFill('getInfoPerk.aspx?');
+    await sleep(500);
+
+    // Each click is 2 hours, so multiply number of days by 12
+    const clicksPerPerk = Number(prompt('How many days of perks would you like to add?', '5')) * 12;
+    for (perkCounter = 0; perkCounter < desiredPerks.length; ++perkCounter) {
+      await addPerk(desiredPerks[perkCounter], clicksPerPerk);
+    }
+  };
+
+  $(document).ready(() => {
+    ButtonBar.addToButtonBar(perkHtml);
+  });
+
+  return { addPerks };
+})();
+
 if (unsafeWindow.MqoUtility === undefined) {
   unsafeWindow.MqoUtility = {
     ButtonBar,
     ChestOpener,
     Princess,
+    Perks,
   }
 }
