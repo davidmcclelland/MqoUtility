@@ -105,9 +105,7 @@ const Princess = (() => {
     [375, 875], [375, 625], [375, 375], [375, 125],
     [625, 125], [625, 375], [625, 625], [625, 875],
     [875, 875], [875, 625], [875, 375], [875, 125]
-  ]
-
-  let currentSearchIndex = 0;
+  ];
 
   const displayHtml = `
   <div id='MqoUtilityPrincessContent' style='position: absolute;top: 0;left: 0; width: 300px;'>
@@ -157,9 +155,21 @@ const Princess = (() => {
     currentSearchIndex = 0;
   };
 
+  const getClueText = () => {
+    return $('#ContentLoad > div:nth-child(3) > div > div:last-of-type').text();
+  }
+
   const doSearch = async () => {
-    sendRequestContentFill('getSearch.aspx?clue=1');
-    await waitForActionTimer(30000);
+    let dataPointFound = false;
+    let clueText;
+    while (!dataPointFound) {
+      sendRequestContentFill('getSearch.aspx?clue=1');
+      await sleep(250);
+      clueText = getClueText();
+      dataPointFound = clueText && clueText.startsWith('(');
+      await waitForActionTimer(30000);
+    }
+    console.log('Data point found', clueText);
   }
 
   const doTravel = async () => {
@@ -174,27 +184,18 @@ const Princess = (() => {
     sendRequestContentFill(`getMap.aspx?}&zoom=4`)
   }
 
-  const getClueText = () => {
-    return $('#ContentLoad > div:nth-child(3) > div > div:last-of-type').text();
-  }
-
   const autoSearch = async () => {
     let usefulClueFound = false;
     clearLog();
 
     for (let searchCounter = 0; !usefulClueFound && (searchCounter < searchPoints.length); ++searchCounter) {
-      const [x, y] = searchPoints[currentSearchIndex];
+      const [x, y] = searchPoints[searchCounter];
+      console.log('searching', x, y);
       $('#princess_x_input').val(x);
       $('#princess_y_input').val(y);
       await doTravel();
-      let dataPointFound = false;
-      let clueText;
-      while (!dataPointFound) {
-        await doSearch();
-        clueText = getClueText();
-        dataPointFound = clueText && clueText.startsWith('(');
-      }
 
+      const clueText = getClueText();
       usefulClueFound = !clueText.includes('isnt');
     }
   }
@@ -231,6 +232,28 @@ const Princess = (() => {
   };
 })();
 
+const Market = (() => {
+  const marketButtonHtml = `<input type="button" class="gmButtonMed" value="Deals" onclick="MqoUtility.Market.purchaseDailyDeals()">`;
+
+  const purchaseDailyDeals = async () => {
+    sendRequestContentFill('getNavigation.aspx?screen=2&market=1');
+    await sleep(500);
+    for (let buyIndex = 1; buyIndex <= 5; ++buyIndex) {
+      const buyButton = $('#btnBuy' + buyIndex);
+      if (buyButton.length) {
+        buyButton.click();
+        await sleep(500);
+      }
+    }
+  }
+
+  $(document).ready(() => {
+    ButtonBar.addToButtonBar(marketButtonHtml);
+  });
+
+  return { purchaseDailyDeals };
+})();
+
 const Perks = (() => {
   const DrunkButtonId = '#btnActivatePerk21';
   const EnragedButtonId = '#btnActivatePerk22';
@@ -256,7 +279,7 @@ const Perks = (() => {
 
     // Each click is 2 hours, so multiply number of days by 12
     const clicksPerPerk = Number(prompt('How many days of perks would you like to add?', '5')) * 12;
-    for (perkCounter = 0; perkCounter < desiredPerks.length; ++perkCounter) {
+    for (let perkCounter = 0; perkCounter < desiredPerks.length; ++perkCounter) {
       await addPerk(desiredPerks[perkCounter], clicksPerPerk);
     }
   };
@@ -273,6 +296,7 @@ if (unsafeWindow.MqoUtility === undefined) {
     ButtonBar,
     ChestOpener,
     Princess,
+    Market,
     Perks,
   }
 }
