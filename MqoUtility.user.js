@@ -57,12 +57,13 @@ const ButtonBar = (() => {
 
 const ChestOpener = (() => {
   const openChestHtml = `<input type="button" class="gmButtonMed" value="Chests" onclick="MqoUtility.ChestOpener.openAllChests()">`;
-  const openBagHtml = `<input type="button" class="gmButtonMed" value="Bags" onclick="MqoUtility.ChestOpener.openAllResBags()">`;
+  const openBagHtml = `<input type="button" class="gmButtonMed" value="Bags/Keys" onclick="MqoUtility.ChestOpener.openBagsAndKeys()">`;
 
   const bronzeChestId = '#btnOpenChest2';
   const silverChestid = '#btnOpenChest3';
   const goldChestId = '#btnOpenChest4';
 
+  const keyId = '#btnOpen';
   const resBagId = '#btnOpenResBag';
 
   const keepOpeningChest = (btnId) => {
@@ -87,8 +88,10 @@ const ChestOpener = (() => {
     await openAllChestsOfType(bronzeChestId);
   };
 
-  const openAllResBags = async () => {
-    openAllChestsOfType(resBagId);
+  const openBagsAndKeys = async () => {
+    await openAllChests();
+    await openAllChestsOfType(keyId);
+    await openAllChestsOfType(resBagId);
   }
 
   $(document).ready(() => {
@@ -96,7 +99,7 @@ const ChestOpener = (() => {
     ButtonBar.addToButtonBar(openBagHtml);
   });
 
-  return { openAllChests, openAllResBags };
+  return { openAllChests, openBagsAndKeys };
 })();
 
 const Princess = (() => {
@@ -166,16 +169,21 @@ const Princess = (() => {
       sendRequestContentFill('getSearch.aspx?clue=1');
       await sleep(250);
       clueText = getClueText();
-      dataPointFound = clueText && clueText.startsWith('(');
+      if (!clueText) {
+        break;
+      }
+      dataPointFound = clueText.startsWith('(') || clueText.includes('found');
       await waitForActionTimer(30000);
     }
     console.log('Data point found', clueText);
   }
 
   const doTravel = async () => {
+    await waitForActionTimer(30000);
     const x = $('#princess_x_input').val();
     const y = $('#princess_y_input').val();
     sendRequestContentFill(`getMap.aspx?NewX=${x}&NewY=${y}&zoom=4`)
+    await sleep(250);
     await waitForActionTimer(30000);
     await doSearch();
   }
