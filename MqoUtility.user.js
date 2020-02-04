@@ -159,7 +159,11 @@ const Princess = (() => {
   };
 
   const getClueText = () => {
-    return $('#ContentLoad > div:nth-child(3) > div > div:last-of-type').text();
+    let text = $('#ContentLoad > div:nth-child(3) > div > div:not(:has(.SearchLinkSimpleName)):last').text();
+    if (text === 'Tradeskills/Search') {
+      text = null;
+    }
+    return text;
   }
 
   const doSearch = async () => {
@@ -175,16 +179,25 @@ const Princess = (() => {
       dataPointFound = clueText.startsWith('(') || clueText.includes('found');
       await waitForActionTimer(30000);
     }
+
+    if (clueText && clueText.includes('found the princess')) {
+      returnHome();
+    }
+
     console.log('Data point found', clueText);
+  }
+
+  const goToPoint = async (x, y) => {
+    sendRequestContentFill(`getMap.aspx?NewX=${x}&NewY=${y}&zoom=4`)
+    await sleep(250);
+    await waitForActionTimer(30000);
   }
 
   const doTravel = async () => {
     await waitForActionTimer(30000);
     const x = $('#princess_x_input').val();
     const y = $('#princess_y_input').val();
-    sendRequestContentFill(`getMap.aspx?NewX=${x}&NewY=${y}&zoom=4`)
-    await sleep(250);
-    await waitForActionTimer(30000);
+    await goToPoint(x, y);
     await doSearch();
   }
 
@@ -206,6 +219,11 @@ const Princess = (() => {
       const clueText = getClueText();
       usefulClueFound = !clueText.includes('isnt');
     }
+  }
+
+  const returnHome = async () => {
+    goToPoint(460, 557);
+    TradeskillStart(3);
   }
 
   const handleLoadpageEvent = () => {
