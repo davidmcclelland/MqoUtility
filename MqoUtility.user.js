@@ -308,13 +308,157 @@ const Perks = (() => {
     for (let perkCounter = 0; perkCounter < desiredPerks.length; ++perkCounter) {
       await addPerk(desiredPerks[perkCounter], clicksPerPerk);
     }
-  };
+  }
 
   $(document).ready(() => {
     ButtonBar.addToButtonBar(perkHtml);
   });
 
   return { addPerks };
+})();
+
+const Runes = (() => {
+  const combineRunesHtml = `<input type="button" class="gmButtonMed" value="Runes" onclick="MqoUtility.Runes.createRune()">`;
+
+  const combineRunesOfLevel = async () => {
+    sendRequestContentFill('getRuneUpgrade.aspx');
+    await sleep(500);
+
+    const runeLevel = prompt('What level of rune would you like to combine (entered as the string name)?', 'two');
+    const buttonId = `#dex_rune_${runeLevel}_btn`;
+    while (true) {
+      const dexButton = $(buttonId);
+      dexButton.click();
+      await sleep(3000);
+      const combineButton = $('#btnUpgrade');
+      if (combineButton.length) {
+        combineButton.click();
+        await sleep(3000);
+      } else {
+        break;
+      }
+    }
+  }
+
+  const countRunesOfLevel = (level) => {
+    // Set up the regex to be used on each option to find the value of the item.
+    const rgxLevel = / lv. (\d+)/i;
+    let skip = false;
+    let count = 0;
+    $('#SelectItemSource').find('option').each((index, element) => {
+      if (element.text == "---Rune to upgrade---") {
+        // Ignore all of the runes for a while because they are the equipped runes. Keep skipping the runes until we see the
+        // option/label that denotes the "real" runes are starting next.
+        skip = true;
+        return true;
+      }
+
+      if (skip) {
+        if (element.text == "---Inventory Runes---") {
+          skip = false;
+        }
+
+        return true;
+      }
+
+      var result = rgxLevel.exec(element.text);
+      if (result != null) {
+        var valueInt = parseInt(result[1], 10);
+        if (valueInt == level) {
+          count++;
+          return true;
+        }
+      } else {
+        // This entry does not have a value associated with it. It is probably one of the section headers or spacer lines.
+      }
+    });
+    return count;
+  }
+
+  const createRune = async () => {
+    sendRequestContentFill('getRuneUpgrade.aspx');
+    await sleep(500);
+    const targetRuneLevel = Number(prompt('What level of rune would you like to make?', 15));
+    if (targetRuneLevel) {
+      createRuneOfLevel(targetRuneLevel);
+    }
+  }
+
+  const createRuneOfLevel = async (targetRuneLevel) => {
+    let sourceRuneLevel = targetRuneLevel - 1;
+    let sacrificedRuneLevel = targetRuneLevel - 6;
+    switch (targetRuneLevel) {
+      case 1:
+        return;
+      case 2:
+        return;
+      case 3:
+        sourceRuneLevel = 1;
+        sacrificedRuneLevel = 1;
+        break;
+      case 4:
+        sourceRuneLevel = 2;
+        sacrificedRuneLevel = 2;
+        break;
+      case 5:
+        sourceRuneLevel = 3;
+        sacrificedRuneLevel = 3;
+        break;
+      case 6:
+        sourceRuneLevel = 4;
+        sacrificedRuneLevel = 4;
+        break;
+    }
+    const amountNeeded = (sourceRuneLevel === sacrificedRuneLevel) ? 2 : 1;
+    while (countRunesOfLevel(sourceRuneLevel) < amountNeeded) {
+      if ((sourceRuneLevel === 1) || (sourceRuneLevel === 2)) {
+        alert('Not enough level 1 or 2 runes available to continue!');
+        throw 'Not enough level 1 or 2 runes available to continue!';
+      }
+      await createRuneOfLevel(sourceRuneLevel);
+    }
+
+    while (countRunesOfLevel(sacrificedRuneLevel) < amountNeeded) {
+      await createRuneOfLevel(sacrificedRuneLevel);
+    }
+    const sourceRuneCount = countRunesOfLevel(sourceRuneLevel);
+    const sacrificedRuneCount = countRunesOfLevel(sacrificedRuneLevel);
+    if ((amountNeeded > sourceRuneCount) || (amountNeeded > sacrificedRuneCount)) {
+      alert('Not enough runes are available to continue');
+      throw `Not enough runes available. sourceRuneLevel: ${sourceRuneLevel}, sacrificedLevel: ${sacrificedRuneLevel}`;
+    }
+
+    MQO_RuneHelper.selectRuneWrapper(sourceRuneLevel);
+    await sleep(2000);
+    if (sacrificedRuneLevel !== sourceRuneLevel) {
+      $('#dex_rune_minus5_btn').click();
+      await sleep(2000);
+    }
+
+    const combineButton = $('#btnUpgrade');
+    if (combineButton.length) {
+      combineButton.click();
+      await sleep(2000);
+    } else {
+      alert('The button to combine did not appear. Something went wrong!');
+      throw 'The button to combine did not appear. Something went wrong!';
+    }
+  }
+
+  const createMultipleRunesOfLevel = async (level, quantity) => {
+    sendRequestContentFill('getRuneUpgrade.aspx');
+    await sleep(500);
+    for (let i = 0; i < quantity; i++) {
+      console.log('Creating rune', i + 1, 'of', quantity);
+      await createRuneOfLevel(level);
+    }
+  }
+
+  $(document).ready(() => {
+    ButtonBar.addToButtonBar(combineRunesHtml);
+  })
+
+  return { combineRunesOfLevel, createRune, createMultipleRunesOfLevel }
 })();
 
 if (unsafeWindow.MqoUtility === undefined) {
@@ -324,5 +468,6 @@ if (unsafeWindow.MqoUtility === undefined) {
     Princess,
     Market,
     Perks,
+    Runes,
   }
 }
