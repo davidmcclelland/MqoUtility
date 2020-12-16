@@ -11,23 +11,14 @@
 // @noframes
 // ==/UserScript==
 
-const waitForActionTimer = timeoutms => new Promise((r, j) => {
-  const check = () => {
-    if ($('#prgActionTimer').attr('aria-valuenow') === '0') {
-      r();
-    } else if ((timeoutms -= 100) < 0) {
-      j('timed out!');
-    } else {
-      setTimeout(check, 100);
-    }
-  }
-  setTimeout(check, 100);
-});
-
 const sleep = m => new Promise(r => setTimeout(r, m));
 
+if (unsafeWindow.MqoUtility === undefined) {
+  unsafeWindow.MqoUtility = {};
+}
+
 const ButtonBar = (() => {
-  const displayHtml = `<div id="MqoUtilityButtons"></div>`;
+  const displayHtml = `<div id="MqoUtilityButtons" style="margin-top: 5px;"></div>`;
 
   const displayStyle = `
   #MqoUtilityButtons > input {
@@ -49,20 +40,22 @@ const ButtonBar = (() => {
 
   $(document).ready(() => {
     GM_addStyle(displayStyle);
-    $('#CaptchaDiv').before(displayHtml);
+    $('#TitleEmbedded').remove();
+    $('#ZoneContent').prepend(displayHtml);
   });
 
-  return { addToButtonBar };
+  unsafeWindow.MqoUtility.ButtonBar = { addToButtonBar };
 })();
 
 const ChestOpener = (() => {
   const openChestHtml = `<input type="button" class="gmButtonMed" value="Chests" onclick="MqoUtility.ChestOpener.openAllChests()">`;
-  const openBagHtml = `<input type="button" class="gmButtonMed" value="Bags" onclick="MqoUtility.ChestOpener.openAllResBags()">`;
+  const openBagHtml = `<input type="button" class="gmButtonMed" value="Bags/Keys" onclick="MqoUtility.ChestOpener.openBagsAndKeys()">`;
 
   const bronzeChestId = '#btnOpenChest2';
   const silverChestid = '#btnOpenChest3';
   const goldChestId = '#btnOpenChest4';
 
+  const keyId = '#btnOpen';
   const resBagId = '#btnOpenResBag';
 
   const keepOpeningChest = (btnId) => {
@@ -87,153 +80,23 @@ const ChestOpener = (() => {
     await openAllChestsOfType(bronzeChestId);
   };
 
-  const openAllResBags = async () => {
-    openAllChestsOfType(resBagId);
+  const openBagsAndKeys = async () => {
+    await openAllChests();
+    await openAllChestsOfType(keyId);
+    await openAllChestsOfType(resBagId);
   }
 
   $(document).ready(() => {
-    ButtonBar.addToButtonBar(openChestHtml);
-    ButtonBar.addToButtonBar(openBagHtml);
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(openChestHtml);
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(openBagHtml);
   });
 
-  return { openAllChests, openAllResBags };
-})();
-
-const Princess = (() => {
-  const searchPoints = [
-    [125, 125], [125, 375], [125, 625], [125, 875],
-    [375, 875], [375, 625], [375, 375], [375, 125],
-    [625, 125], [625, 375], [625, 625], [625, 875],
-    [875, 875], [875, 625], [875, 375], [875, 125]
-  ];
-
-  const displayHtml = `
-  <div id='MqoUtilityPrincessContent' style='position: absolute;top: 0;left: 0; width: 300px;'>
-    <h1 style='font-size: 30px;'>Princess</h1>
-    <div>
-      <div id='princess_x_div'>
-        <h1>X</h1>
-        <input type='number' min='1' max='1000' value='201' id='princess_x_input'/>
-      </div>
-      <div id='princess_y_div'>
-        <h1>Y</h1>
-        <input type='number' min='1' max='1000' value='201' id='princess_y_input'/>
-      </div>
-      <div id='princess_button_div'>
-        <input value='travel' type='button' onclick='MqoUtility.Princess.doTravel()'>
-        <input value='search' type='button' onclick='MqoUtility.Princess.doSearch()'>
-        <input value='map' type='button' onclick='MqoUtility.Princess.doShowMap()'>
-        <input value='next' type='button' onclick='MqoUtility.Princess.autoSearch()'>
-      </div>
-    </div>
-    <div style='margin-top: 10px;'>
-      <span style='display: inline-flex;'>
-        <h2 style='font-size: 25px; margin-right: 10px'>Log</h2>
-        <input value='clear' type='button' onclick='MqoUtility.Princess.clearLog()'>
-      </span>
-      <div style='height: 750px; overflow-y: auto'>
-        <ul id='princess_log'></ul>
-      </div>
-    </div>
-  </div>
-  `
-
-  const princessToggleHtml = `<input type="button" class="gmButtonMed" value="Princess" onclick="MqoUtility.Princess.toggleVisibility()">`;
-
-  const toggleVisibility = () => {
-    $('#MqoUtilityPrincessContent').toggle();
-  }
-
-  const addLogEntry = (logText) => {
-    const prunedArr = logText.match(/\(.*?\)/g);
-    const displayText = prunedArr.join(' ');
-    $('#princess_log').append(`<li>${displayText}</li>`);
-  };
-
-  const clearLog = () => {
-    $('#princess_log').empty();
-    currentSearchIndex = 0;
-  };
-
-  const getClueText = () => {
-    return $('#ContentLoad > div:nth-child(3) > div > div:last-of-type').text();
-  }
-
-  const doSearch = async () => {
-    let dataPointFound = false;
-    let clueText;
-    while (!dataPointFound) {
-      sendRequestContentFill('getSearch.aspx?clue=1');
-      await sleep(250);
-      clueText = getClueText();
-      dataPointFound = clueText && clueText.startsWith('(');
-      await waitForActionTimer(30000);
-    }
-    console.log('Data point found', clueText);
-  }
-
-  const doTravel = async () => {
-    const x = $('#princess_x_input').val();
-    const y = $('#princess_y_input').val();
-    sendRequestContentFill(`getMap.aspx?NewX=${x}&NewY=${y}&zoom=4`)
-    await waitForActionTimer(30000);
-    await doSearch();
-  }
-
-  const doShowMap = () => {
-    sendRequestContentFill(`getMap.aspx?}&zoom=4`)
-  }
-
-  const autoSearch = async () => {
-    let usefulClueFound = false;
-    clearLog();
-
-    for (let searchCounter = 0; !usefulClueFound && (searchCounter < searchPoints.length); ++searchCounter) {
-      const [x, y] = searchPoints[searchCounter];
-      console.log('searching', x, y);
-      $('#princess_x_input').val(x);
-      $('#princess_y_input').val(y);
-      await doTravel();
-
-      const clueText = getClueText();
-      usefulClueFound = !clueText.includes('isnt');
-    }
-  }
-
-  const handleLoadpageEvent = () => {
-    const clueText = getClueText();
-    if (clueText && clueText.startsWith('(')) {
-      addLogEntry(clueText);
-    }
-  };
-
-  const handleWebsocketEvent = (event) => {
-    const datum = event.data;
-    const arr = datum.split('|');
-    if (arr[0] === 'LOADPAGE') {
-      handleLoadpageEvent();
-    }
-  };
-
-  MQO_WebsocketWrapper.addCallback(handleWebsocketEvent);
-
-  $(document).ready(() => {
-    $('body').append(displayHtml);
-    ButtonBar.addToButtonBar(princessToggleHtml);
-  });
-
-  return {
-    doTravel,
-    doSearch,
-    doShowMap,
-    autoSearch,
-    clearLog,
-    toggleVisibility,
-  };
+  unsafeWindow.MqoUtility.ChestOpener = { openAllChests, openBagsAndKeys };
 })();
 
 const Market = (() => {
-  const marketButtonHtml = `<input type="button" class="gmButtonMed" value="Deals" onclick="MqoUtility.Market.purchaseDailyDeals()">`;
+  const dealButtonHtml = `<input type="button" class="gmButtonMed" value="Deals" onclick="MqoUtility.Market.purchaseDailyDeals()">`;
+  const marketButtonHtml = `<input type="button" class="gmButtonMed" value="Market" onclick="MqoUtility.Market.goToMarket()">`;
 
   const purchaseDailyDeals = async () => {
     sendRequestContentFill('getNavigation.aspx?screen=2&market=1');
@@ -247,11 +110,16 @@ const Market = (() => {
     }
   }
 
+  const goToMarket = () => {
+    sendRequestContentFill(`getMarket.aspx?null=`);
+  }
+
   $(document).ready(() => {
-    ButtonBar.addToButtonBar(marketButtonHtml);
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(dealButtonHtml);
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(marketButtonHtml);
   });
 
-  return { purchaseDailyDeals };
+  unsafeWindow.MqoUtility.Market = { purchaseDailyDeals, goToMarket };
 })();
 
 const Perks = (() => {
@@ -282,21 +150,264 @@ const Perks = (() => {
     for (let perkCounter = 0; perkCounter < desiredPerks.length; ++perkCounter) {
       await addPerk(desiredPerks[perkCounter], clicksPerPerk);
     }
-  };
+  }
 
   $(document).ready(() => {
-    ButtonBar.addToButtonBar(perkHtml);
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(perkHtml);
   });
 
-  return { addPerks };
+  unsafeWindow.MqoUtility.Perks = { addPerks };
 })();
 
-if (unsafeWindow.MqoUtility === undefined) {
-  unsafeWindow.MqoUtility = {
-    ButtonBar,
-    ChestOpener,
-    Princess,
-    Market,
-    Perks,
+const BulkSell = (() => {
+  const bulkSellHtml = `<input type="button" class="gmButtonMed" value="Bulk Sell" onclick="MqoUtility.BulkSell.toggleSelling()">`;
+  let bulkSellButton = null;
+  let bulkSellInterval = null;
+
+  const startSelling = () => {
+    bulkSellButton.style.backgroundColor = '#d63031';
+    bulkSellInterval = setInterval(() => {
+      sendRequestContentFill('getCustomize.aspx?bulk=1&bulks=14&bulkq=4&bulke=1&confirmbs=1&null=');
+    }, 1000);
   }
-}
+
+  const stopSelling = () => {
+    bulkSellButton.style.backgroundColor = '#ffffff';
+    clearInterval(bulkSellInterval);
+    bulkSellInterval = null;
+  }
+
+  const toggleSelling = () => {
+    if(bulkSellInterval) {
+      stopSelling();
+    } else {
+      startSelling();
+    }
+  }
+
+  $(document).ready(() => {
+    bulkSellButton = $(bulkSellHtml)[0];
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(bulkSellButton);
+  });
+
+  unsafeWindow.MqoUtility.BulkSell = { toggleSelling };
+})();
+
+const Kingdom = (() => {
+  const maintainKingdomHtml = `<input type="button" class="gmButtonMed" value="KD Food" onclick="MqoUtility.Kingdom.maintainKingdomFood()">`;
+
+  const maintainKingdomFood = () => {
+    sendRequestContentFill('getKingdom.aspx?action=maintain&null=');
+  }
+
+  $(document).ready(() => {
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(maintainKingdomHtml);
+  });
+
+  unsafeWindow.MqoUtility.Kingdom = { maintainKingdomFood };
+})();
+
+const Runes = (() => {
+  const combineRunesHtml = `<input type="button" class="gmButtonMed" value="Runes" onclick="MqoUtility.Runes.createRune()">`;
+  const lastRuneLevelKey = 'mqoUtilityLastRuneLevel';
+
+  const combineRunesOfLevel = async () => {
+    sendRequestContentFill('getRuneUpgrade.aspx');
+    await sleep(500);
+
+    const runeLevel = prompt('What level of rune would you like to combine (entered as the string name)?', 'two');
+    const buttonId = `#dex_rune_${runeLevel}_btn`;
+    while (true) {
+      const dexButton = $(buttonId);
+      dexButton.click();
+      await sleep(10000);
+      const combineButton = $('#btnUpgrade');
+      if (combineButton.length) {
+        combineButton.click();
+        await sleep(3000);
+      } else {
+        break;
+      }
+    }
+  }
+
+  const countRunesOfLevel = (level) => {
+    // Set up the regex to be used on each option to find the value of the item.
+    const rgxLevel = / lv. (\d+)/i;
+    let skip = false;
+    let count = 0;
+    $('#SelectItemSource').find('option').each((index, element) => {
+      if (element.text == "---Rune to upgrade---") {
+        // Ignore all of the runes for a while because they are the equipped runes. Keep skipping the runes until we see the
+        // option/label that denotes the "real" runes are starting next.
+        skip = true;
+        return true;
+      }
+
+      if (skip) {
+        if (element.text == "---Inventory Runes---") {
+          skip = false;
+        }
+
+        return true;
+      }
+
+      var result = rgxLevel.exec(element.text);
+      if (result != null) {
+        var valueInt = parseInt(result[1], 10);
+        if (valueInt == level) {
+          count++;
+          return true;
+        }
+      } else {
+        // This entry does not have a value associated with it. It is probably one of the section headers or spacer lines.
+      }
+    });
+    return count;
+  }
+
+  const createRune = async () => {
+    sendRequestContentFill('getRuneUpgrade.aspx');
+    await sleep(500);
+	const defaultRuneLevel = unsafeWindow.localStorage.getItem(lastRuneLevelKey) || 15;
+    const targetRuneLevel = Number(prompt('What level of rune would you like to make?', defaultRuneLevel));
+    if (targetRuneLevel) {
+	  unsafeWindow.localStorage.setItem(lastRuneLevelKey, targetRuneLevel);
+      createRuneOfLevel(targetRuneLevel);
+    }
+  }
+
+  const createRuneOfLevel = async (targetRuneLevel) => {
+    let sourceRuneLevel = targetRuneLevel - 1;
+    let sacrificedRuneLevel = targetRuneLevel - 6;
+    switch (targetRuneLevel) {
+      case 1:
+        return;
+      case 2:
+        return;
+      case 3:
+        sourceRuneLevel = 1;
+        sacrificedRuneLevel = 1;
+        break;
+      case 4:
+        sourceRuneLevel = 3;
+        sacrificedRuneLevel = 1;
+        break;
+      case 5:
+        sourceRuneLevel = 3;
+        sacrificedRuneLevel = 3;
+        break;
+      case 6:
+        sourceRuneLevel = 4;
+        sacrificedRuneLevel = 4;
+        break;
+    }
+    const amountNeeded = (sourceRuneLevel === sacrificedRuneLevel) ? 2 : 1;
+    while (countRunesOfLevel(sourceRuneLevel) < amountNeeded) {
+      if ((sourceRuneLevel === 1) || (sourceRuneLevel === 2)) {
+        alert('Not enough level 1 or 2 runes available to continue!');
+        throw 'Not enough level 1 or 2 runes available to continue!';
+      }
+      await createRuneOfLevel(sourceRuneLevel);
+    }
+
+    while (countRunesOfLevel(sacrificedRuneLevel) < amountNeeded) {
+      await createRuneOfLevel(sacrificedRuneLevel);
+    }
+    const sourceRuneCount = countRunesOfLevel(sourceRuneLevel);
+    const sacrificedRuneCount = countRunesOfLevel(sacrificedRuneLevel);
+    if ((amountNeeded > sourceRuneCount) || (amountNeeded > sacrificedRuneCount)) {
+      alert('Not enough runes are available to continue');
+      throw `Not enough runes available. sourceRuneLevel: ${sourceRuneLevel}, sacrificedLevel: ${sacrificedRuneLevel}`;
+    }
+
+    MQO_RuneHelper.selectRuneWrapper(sourceRuneLevel);
+    await sleep(2000);
+    if (sacrificedRuneLevel !== sourceRuneLevel) {
+      $('#dex_rune_minus5_btn').click();
+      await sleep(2000);
+    }
+
+    const combineButton = $('#btnUpgrade');
+    if (combineButton.length) {
+      combineButton.click();
+      await sleep(2000);
+    } else {
+      alert('The button to combine did not appear. Something went wrong!');
+      throw 'The button to combine did not appear. Something went wrong!';
+    }
+  }
+
+  const createMultipleRunesOfLevel = async (level, quantity) => {
+    sendRequestContentFill('getRuneUpgrade.aspx');
+    await sleep(500);
+    for (let i = 0; i < quantity; i++) {
+      console.log('Creating rune', i + 1, 'of', quantity);
+      await createRuneOfLevel(level);
+    }
+  }
+
+  $(document).ready(() => {
+    unsafeWindow.MqoUtility.ButtonBar.addToButtonBar(combineRunesHtml);
+  });
+
+  unsafeWindow.MqoUtility.Runes = { combineRunesOfLevel, createRune, createMultipleRunesOfLevel };
+})();
+
+// Credit to Vibbles for the chat extender
+// https://raw.githubusercontent.com/Vibblez/MidenQuest/master/MidenQuest.ChatExtender.user.js
+const ChatExtender = (() => {
+  function addGlobalStyle(css) {
+    var head, style;
+    head = document.getElementsByTagName('head')[0];
+    if (!head) { return; }
+
+    style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = css;
+    head.appendChild(style);
+    }
+
+    addGlobalStyle('#ZoneChat { height: 360px; } #ChatLog { height: 300px; }');
+})();
+
+const NavigationHelpers = (() => {
+  const addLinks = (id) => {
+    let side = $(`#${id}`);
+    let sideText = document.getElementById(id).innerHTML;
+    side.off();
+
+    if (/\w*\s\w*(Gamble)/g.test(sideText)) {
+        side.on("click", () => {
+            sendRequestContentFill("getNavigation.aspx?screen=2&gambling=1&null=");
+        });
+    } else if (/[1-9]\sDeals/g.test(sideText)) {
+        side.on("click", () => {
+            sendRequestContentFill("getNavigation.aspx?screen=2&market=1&null=");
+        });
+    } else if (/\sPerk\s(T|t)ime/g.test(sideText)) {
+        side.on("click", () => {
+            sendRequestContentFill("getInfoPerk.aspx?null=");
+        });
+    }
+  }
+
+  $(document).ready(() => {
+    const side1 = document.getElementById("SideAlert1");
+    const side2 = document.getElementById("SideAlert2");
+    const side3 = document.getElementById("SideAlert3");
+    const side4 = document.getElementById("SideAlert4");
+
+    /* Side bar event listeners */
+    side1.addEventListener("DOMSubtreeModified", () => addLinks("SideAlert1"));
+    side2.addEventListener("DOMSubtreeModified", () => addLinks("SideAlert2"));
+    side3.addEventListener("DOMSubtreeModified", () => addLinks("SideAlert3"));
+    side4.addEventListener("DOMSubtreeModified", () => addLinks("SideAlert4"));
+
+    /* Add initial sidebar links upon page load */
+    addLinks("SideAlert1");
+    addLinks("SideAlert2");
+    addLinks("SideAlert3");
+    addLinks("SideAlert4");
+  });
+})();
