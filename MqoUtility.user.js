@@ -2,6 +2,9 @@
 // @name           MQO Utility
 // @namespace      https://github.com/davidmcclelland/
 // @author         Dave McClelland <davidmcclelland@gmail.com>
+// @homepage       https://github.com/davidmcclelland/MqoUtility
+// @supportURL     https://github.com/davidmcclelland/MqoUtility/issues
+// @downloadURL    https://github.com/davidmcclelland/MqoUtility/raw/master/MqoUtility.user.js
 // @version        1.0.0
 // @include        http://www.midenquest.com/Game.aspx
 // @include        http://midenquest.com/Game.aspx
